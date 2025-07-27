@@ -1,0 +1,24 @@
+{
+  "name": "sunburst-chart",
+  "version": "1.0.0",
+  "description": "A modular sunburst chart library with drill-down functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["sunburst", "chart", "visualization", "d3", "drill-down"],
+  "author": "abhinavsriva26",
+  "license": "MIT",
+  "dependencies": {
+    "d3": "^7.0.0",
+    "jsdom": "^22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhinavsriva26/sunburst.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abhinavsriva26/sunburst/issues"
+  },
+  "homepage": "https://github.com/abhinavsriva26/sunburst#readme"
+}
