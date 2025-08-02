@@ -1,10 +1,11 @@
 const d3 = require('d3');
+const { ISVGCreator, IPathRenderer, INavigationRenderer } = require('./interfaces/IRenderer');
 
-class SVGRenderer {
-  constructor(width, height) {
+class SVGCreator extends ISVGCreator {
+  constructor(width = 500, height = 500) {
+    super();
     this.width = width;
     this.height = height;
-    this.radius = Math.min(width, height) / 2;
   }
 
   createSVG(document) {
@@ -12,6 +13,8 @@ class SVGRenderer {
       .append('svg')
       .attr('width', this.width)
       .attr('height', this.height)
+      .attr('viewBox', `0 0 ${this.width} ${this.height}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
       .attr('id', 'sunburst-svg');
 
     const g = svg.append('g')
@@ -28,14 +31,19 @@ class SVGRenderer {
       .style('position', 'absolute')
       .style('background', 'rgba(0,0,0,0.8)')
       .style('color', 'white')
-      .style('padding', '8px')
+      .style('padding', 'clamp(6px, 1vw, 10px)')
       .style('border-radius', '4px')
-      .style('font-size', '12px')
+      .style('font-size', 'clamp(11px, 1.5vw, 13px)')
       .style('pointer-events', 'none')
       .style('opacity', '0')
-      .style('transition', 'opacity 0.2s');
+      .style('transition', 'opacity 0.2s')
+      .style('max-width', '200px')
+      .style('word-wrap', 'break-word')
+      .style('z-index', '1001');
   }
+}
 
+class PathRenderer extends IPathRenderer {
   renderPaths(g, root, arc, color, animate = true) {
     const paths = g.selectAll('path')
       .data(root.descendants(), d => d.data.name);
@@ -62,7 +70,9 @@ class SVGRenderer {
 
     return g.selectAll('path');
   }
+}
 
+class NavigationRenderer extends INavigationRenderer {
   renderCenterNavigation(g, navigationManager) {
     g.selectAll('.center-nav').remove();
 
@@ -71,7 +81,7 @@ class SVGRenderer {
       
       const backButton = centerGroup.append('circle')
         .attr('r', 25)
-        .style('fill', '#f8f9fa')
+        .style('fill', 'white')
         .style('stroke', '#6c757d')
         .style('stroke-width', '2px')
         .style('cursor', 'pointer');
@@ -104,4 +114,4 @@ class SVGRenderer {
   }
 }
 
-module.exports = SVGRenderer;
+module.exports = { SVGCreator, PathRenderer, NavigationRenderer };

@@ -1,17 +1,22 @@
 const { JSDOM } = require('jsdom');
 const DataProcessor = require('./core/DataProcessor');
-const NavigationManager = require('./core/NavigationManager');
-const SVGRenderer = require('./core/SVGRenderer');
-const HTMLGenerator = require('./core/HTMLGenerator');
+const ChartFactory = require('./core/ChartFactory');
 
 class SunburstChart {
-  constructor(options = {}) {
-    this.width = options.width || 400;
-    this.height = options.height || 400;
+  constructor(options = {}, factory = ChartFactory) {
+    this.width = options.width || 800;
+    this.height = options.height || 800;
     this.radius = Math.min(this.width, this.height) / 2;
+    this.maxDepth = options.maxDepth || 3;
+    this.showSearch = options.showSearch !== false;
     
-    this.renderer = new SVGRenderer(this.width, this.height);
-    this.navigationManager = new NavigationManager();
+    // Use factory to create dependencies
+    this.svgCreator = factory.createSVGCreator(this.width, this.height);
+    this.pathRenderer = factory.createPathRenderer();
+    this.navigationRenderer = factory.createNavigationRenderer();
+    this.htmlGenerator = factory.createHTMLGenerator();
+    this.dataTransformer = factory.createDataTransformer();
+    this.navigationManager = factory.createNavigationManager();
   }
 
   create(data) {
@@ -21,23 +26,36 @@ class SunburstChart {
 
     this.navigationManager.initialize(data);
     
-    const { svg, g } = this.renderer.createSVG(document);
-    this.renderer.createTooltip(document);
+    const { svg, g } = this.svgCreator.createSVG(document);
+    this.svgCreator.createTooltip(document);
     
     const root = DataProcessor.processHierarchy(data, this.radius);
     const arc = DataProcessor.createArcGenerator();
     const color = DataProcessor.createColorScale();
     
-    this.renderer.renderPaths(g, root, arc, color, false);
+    this.pathRenderer.renderPaths(g, root, arc, color, false);
     
-    const clientScript = HTMLGenerator.generateClientScript(
+    const clientScript = this.htmlGenerator.generateClientScript(
       data, 
       this.width, 
       this.height, 
-      this.radius
+      this.radius,
+      this.showSearch,
+      this.originalFlatData
     );
     
-    return HTMLGenerator.wrapInHTML(document.body.innerHTML, clientScript);
+    return this.htmlGenerator.wrapInHTML(document.body.innerHTML, clientScript, this.showSearch);
+  }
+
+  createFromKnowledgeGraph(graphData, displayDepth = 3, showSearch = true) {
+    this.showSearch = showSearch;
+    this.originalFlatData = graphData.nodes;
+    const transformedData = this.dataTransformer.transform(graphData, { displayDepth });
+    return this.create(transformedData);
+  }
+
+  getDataForFocus(graphData, focusNode = '', displayDepth = 3) {
+    return this.dataTransformer.getDataForFocus(graphData, focusNode, { displayDepth });
   }
 }
 

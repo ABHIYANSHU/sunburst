@@ -1,6 +1,6 @@
 {
   "name": "sunburst-chart",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A modular sunburst chart library with drill-down functionality",
   "main": "index.js",
   "scripts": {

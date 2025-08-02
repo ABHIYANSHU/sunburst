@@ -1,30 +1,36 @@
-const IHTMLGenerator = require('./interfaces/IHTMLGenerator');
 const IScriptGenerator = require('./interfaces/IScriptGenerator');
-const ResponsiveCSSManager = require('./ResponsiveCSSManager');
 
-class HTMLGenerator extends IHTMLGenerator {
-  constructor(scriptGenerator) {
-    super();
-    this.scriptGenerator = scriptGenerator;
-    this.cssManager = new ResponsiveCSSManager();
-  }
-
-  generateClientScript(originalData, width, height, radius, showSearch = true, flatData = null) {
-    return this.scriptGenerator.generate(originalData, { width, height, radius, showSearch, flatData });
-  }
-
-  static generateClientScript(originalData, width, height, radius, showSearch = true, flatData = null) {
-    const cssManager = new ResponsiveCSSManager();
+class ClientScriptGenerator extends IScriptGenerator {
+  generate(originalData, options) {
+    const { width, height, radius, showSearch = true, flatData = [] } = options;
+    
     return `
-      ${cssManager.getChartDimensions()}
-      ${cssManager.getResizeHandler()}
-      
       const originalData = ${JSON.stringify(originalData)};
-      const flatData = ${JSON.stringify(flatData || [])};
-      let chartSize = getResponsiveChartSize();
-      let radius = chartSize / 2 - 10;
+      const flatData = ${JSON.stringify(flatData)};
+      const width = ${width};
+      const height = ${height};
+      const radius = ${radius};
       
-      // Extract all node names for search
+      function updateDescriptionPane(nodeName, nodeDescription) {
+        const descPane = document.querySelector('.description-pane');
+        if (!descPane) return;
+        const title = descPane.querySelector('h3');
+        const content = descPane.querySelector('p');
+        
+        title.textContent = nodeName || 'Node Information';
+        if (nodeDescription && nodeDescription.trim()) {
+          content.textContent = nodeDescription;
+          content.className = '';
+        } else {
+          content.textContent = 'No description available for this node.';
+          content.className = 'no-selection';
+        }
+      }
+      
+      function findNodeByName(targetName) {
+        return flatData.find(node => node.name === targetName);
+      }
+      
       function extractAllNodeNames(data) {
         const names = new Set();
         function traverse(node) {
@@ -73,18 +79,15 @@ class HTMLGenerator extends IHTMLGenerator {
       }
       
       const navManager = new ClientNavigationManager();
-      
       const displayDepth = new URLSearchParams(window.location.search).get('displayDepth') || '3';
       
       async function loadDataForFocus(focusNode) {
         try {
-          console.log('Loading data for focus:', focusNode);
           const response = await fetch('/api/data?focus=' + encodeURIComponent(focusNode) + '&displayDepth=' + displayDepth);
           const data = await response.json();
           if (data) {
             navManager.drillDown(data);
             const nodeData = findNodeByName(focusNode);
-            console.log('Node data found:', nodeData);
             updateDescriptionPane(focusNode, nodeData ? nodeData.description : '');
             createChart(data, true);
           }
@@ -93,42 +96,9 @@ class HTMLGenerator extends IHTMLGenerator {
         }
       }
       
-      function updateDescriptionPane(nodeName, nodeDescription) {
-        const descPane = document.querySelector('.description-pane');
-        if (!descPane) {
-          console.error('Description pane not found');
-          return;
-        }
-        const title = descPane.querySelector('h3');
-        const content = descPane.querySelector('p');
-        
-        title.textContent = nodeName || 'Node Information';
-        if (nodeDescription && nodeDescription.trim()) {
-          content.textContent = nodeDescription;
-          content.className = '';
-        } else {
-          content.textContent = 'No description available for this node.';
-          content.className = 'no-selection';
-        }
-        console.log('Updated description pane:', nodeName, nodeDescription);
-      }
-      
-      function findNodeByName(targetName) {
-        console.log('Looking for node:', targetName, 'in flatData:', flatData);
-        const found = flatData.find(node => node.name === targetName);
-        console.log('Found node:', found);
-        return found;
-      }
-      
       function createChart(data, animate = true) {
-        chartSize = getResponsiveChartSize();
-        radius = chartSize / 2 - 10;
-        
-        const svg = d3.select('#sunburst-svg')
-          .attr('width', chartSize)
-          .attr('height', chartSize);
-        const g = d3.select('#sunburst-g')
-          .attr('transform', \`translate(\${chartSize/2}, \${chartSize/2})\`);
+        const svg = d3.select('#sunburst-svg');
+        const g = d3.select('#sunburst-g');
         
         const partition = d3.partition().size([2 * Math.PI, radius]);
         const root = d3.hierarchy(data).sum(d => d.value || 0);
@@ -202,7 +172,7 @@ class HTMLGenerator extends IHTMLGenerator {
           
           centerGroup.append('circle')
             .attr('r', 25)
-            .style('fill', '#f8f9fa')
+            .style('fill', 'white')
             .style('stroke', '#6c757d')
             .style('stroke-width', '2px')
             .style('cursor', 'pointer')
@@ -238,7 +208,6 @@ class HTMLGenerator extends IHTMLGenerator {
         }
       }
       
-      // Initialize search functionality
       function initializeSearch() {
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
@@ -283,7 +252,6 @@ class HTMLGenerator extends IHTMLGenerator {
           }
         });
         
-        // Hide results when clicking outside
         document.addEventListener('click', function(e) {
           if (!e.target.closest('.search-container')) {
             searchResults.style.display = 'none';
@@ -292,40 +260,12 @@ class HTMLGenerator extends IHTMLGenerator {
       }
       
       createChart(originalData, false);
-      
-      // Test description pane immediately
-      setTimeout(() => {
-        console.log('Testing description pane...');
-        updateDescriptionPane('Test Node', 'This is a test description');
-        
-        // Reset after 2 seconds
-        setTimeout(() => {
-          updateDescriptionPane('Node Information', 'Click on a node to view its description');
-        }, 2000);
-      }, 1000);
-      
+      updateDescriptionPane('Node Information', 'Click on a node to view its description');
       if (${showSearch}) {
         initializeSearch();
       }
     `;
   }
-
-  wrapInHTML(bodyContent, script, showSearch = true) {
-    const searchHTML = showSearch ? `<div class="search-container"><input type="text" id="search-input" placeholder="Search nodes..."><div id="search-results"></div></div>` : '';
-    const descriptionHTML = `<div class="description-pane"><h3>Node Information</h3><p class="no-selection">Click on a node to view its description</p></div>`;
-    const responsiveCSS = this.cssManager.generateCSS(showSearch);
-    
-    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://d3js.org/d3.v7.min.js"></script><style>${responsiveCSS}</style></head><body><div class="chart-layout">${searchHTML}<div class="main-content"><div class="chart-wrapper">${bodyContent}</div>${descriptionHTML}</div></div><div id="tooltip"></div><script>${script}</script></body></html>`;
-  }
-
-  static wrapInHTML(bodyContent, script, showSearch = true) {
-    const cssManager = new ResponsiveCSSManager();
-    const searchHTML = showSearch ? `<div class="search-container"><input type="text" id="search-input" placeholder="Search nodes..."><div id="search-results"></div></div>` : '';
-    const descriptionHTML = `<div class="description-pane"><h3>Node Information</h3><p class="no-selection">Click on a node to view its description</p></div>`;
-    const responsiveCSS = cssManager.generateCSS(showSearch);
-    
-    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><script src="https://d3js.org/d3.v7.min.js"></script><style>${responsiveCSS}</style></head><body><div class="chart-layout">${searchHTML}<div class="main-content"><div class="chart-wrapper">${bodyContent}</div>${descriptionHTML}</div></div><div id="tooltip"></div><script>${script}</script></body></html>`;
-  }
 }
 
-module.exports = HTMLGenerator;
+module.exports = ClientScriptGenerator;
