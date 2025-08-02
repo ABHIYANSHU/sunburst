@@ -139,7 +139,7 @@ new SunburstChart(options, factory)
 
 ```bash
 # Clone repository
-git clone https://github.com/abhinavsriva26/sunburst.git
+git clone https://github.com/ABHIYANSHU/sunburst.git
 cd sunburst
 
 # Install dependencies
@@ -202,4 +202,4 @@ MIT License - see LICENSE file for details
 
 ## Issues
 
-Report issues at: https://github.com/abhinavsriva26/sunburst/issues
+Report issues at: https://github.com/ABHIYANSHU/sunburst/issues
